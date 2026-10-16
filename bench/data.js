@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792069926153,
+  "lastUpdate": 1792156183363,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -31485,6 +31485,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 85950,
             "range": "± 9650",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "16622c17d1a58fb034c20799d66843438e19a04b",
+          "message": "ci(bench): keep detector state on gh-pages and gate at 25% (#975)\n\nCloses #942, #946, #947, #965, #966, #967, #971, #972.\n\nAll seven automated filings are false positives from microsecond-scale\nbench noise. This PR raises the gate to 25%, the lowest backtested\nthreshold with no spurious filings, and moves detector state to\n`gh-pages` so cache eviction stops resetting the baseline.\n\n## What was wrong\n\nEvery bench flagged by #946, #947, #965, #966, #967, #971, and #972 is a\nmicrosecond-scale `query_*` or `dynamic_topology/*` bench. These benches\nfluctuate across nights on the same binary and machine class. On commit\n`7c4ace65`, with one lockfile and the dominant machine class,\n`query_elevators/10_elevators` measured -21%, +12%, -1%, +8%, and +6%\nagainst its class median over five nights between 10-06 and 10-11. #971\nand #972 were filed during that window.\n\nDetector history also depended on the repository-wide Actions cache. The\nrepository currently holds 10,565,311,491 bytes across 46 entries, above\nGitHub's 10 GB cap. One lockfile generation of `rust-cache` entries on\n`main` is about 3.5 GB, including a 2.26 GB `rust-check` entry, and\ndependabot PR refs store separate copies.\n\n## Evidence\n\nThe only commit touching `crates/elevator-core/src` from 2026-07-16\nthrough 2026-10-15 is `fede4370`, a clippy-lint cleanup. All other\ncommits affect dependencies, other crates, CI, or the playground.\n\nCode layout changes on any rebuild, not only a `Cargo.lock` change.\nRelease commit `09ae6050` changed only the elevator-core version from\n21.0.1 to 21.0.2 and its CHANGELOG. On the dominant machine class, two\nscaling benches shifted as follows while remaining within about 1%\ninside each build:\n\n| Bench | Before | After |\n| --- | --- | --- |\n| `scaling_realistic/50e_200s_2000r_100ticks` | -15%/-16% | +16%/+16% |\n| `scaling_extreme/500e_5000s_50000r_10ticks` | -15%/-14% | +15%/+14% |\n\nHistory was evicted on 2026-08-25, 08-31, 09-01, 09-08, 09-21, and\n10-05. Between 08-10 and 10-15, only 19 of 67 nightlies had the three\nsame-class samples required to gate results.\n\nA night-by-night replay of all 91 published nightlies from 2026-07-16\nthrough 10-15 produced:\n\n| Threshold | Spurious filings | Injected regression | Macro caught\nwithin 5 nights | Micro caught within 5 nights |\n| --- | ---: | ---: | ---: | ---: |\n| 5% | 32 |  |  |  |\n| 20% | 5 | 30% | 0.90 | 0.91 |\n| 25% | 0 | 25% | 0.24 | 0.41 |\n| 25% | 0 | 30% | 0.87 | 0.81 |\n| 25% | 0 | 40% | 0.95 | 0.94 |\n| 25% | 0 | 50% | 0.98 | 0.99 |\n| 30% | 0 | 30% | 0.24 | 0.41 |\n| 30% | 0 | 40% | 0.91 | 0.90 |\n\nThe 25% gate is the lowest backtested threshold with zero spurious\nfilings, and it catches over 80% of 30% regressions. Regressions smaller\nthan about 30% are below what absolute timings on this runner pool can\nresolve.\n\nLockfile stratification, option 1 from #942, is not used. Layout\nre-rolls on every rebuild, including commits with no dependency change,\nso a lockfile key does not isolate the effect. It also gated only 14 of\n91 backtested nights. A per-bench noise floor of three times baseline\nMAD on top of the 5% threshold still produced 25 spurious filings.\n\n## What changed\n\n- `MIN_CHANGE_PCT` is now `25.0`. The detector script is unchanged.\n- `bench-history.json` and the previous-night list now live at\n`bench/state/<RUSTC_VER>/history.json` and `regressions.txt` on\n`gh-pages`.\n- Restore reads both files with `git show` from a depth-one `gh-pages`\nfetch.\n- Scheduled runs save both files through a scratch worktree, pushing\nfrom the main checkout with up to three attempts.\n- State is saved after issue creation and before dashboard publication.\n- `RUSTC_VER` remains in the path, so a toolchain bump starts fresh\nhistory as required by #884.\n- `docs.yml` uses `keep_files: true`, and both workflows share the\n`pages` concurrency group, preserving detector state across\ndocumentation and dashboard deployments.\n\nThe first nightly after merge records results without gating. Gating\nbegins after three same-class samples exist.\n\n## Validation\n\n- `shellcheck` passes for both new run blocks.\n- A two-night simulation verified empty restore, state push, an\nintervening github-action-benchmark-style fetch and push, successful\nsecond restore, and worktree removal.\n- All 33 detector unit tests pass.\n- The pre-commit hook passes.\n\n<!-- This is an auto-generated description by cubic. -->\n---\n## Summary by cubic\nMoves benchmark detector state from the Actions cache to `gh-pages` and\nraises the regression gate to 25% to eliminate spurious filings.\n\n- The repository cache sits at GitHub's 10 GB cap, and LRU eviction\nreset the detector baseline six times between August and October.\n- Backtesting over 91 nightlies filed 32 spurious issues at 5% and none\nat 25%, while still catching over 80% of synthetic 30% regressions.\n- State lives at `bench/state/<rustc>/` so toolchain bumps start fresh\nhistory; scheduled runs save it, and both workflows share the `pages`\nconcurrency group to avoid races.\n- State saving is gated on the detect step only, so a failed\nissue-creation step no longer drops tonight's sample.\n- The first nightly after merge records results without gating; gating\nbegins after three same-class samples exist.\n\n<sup>Written for commit 967a650ca80fb7c4a0b51581007b6b9f218efbfc.\nSummary will update on new commits.</sup>\n\n<a\nhref=\"https://cubic.dev/pr/andymai/elevator-core/pull/975?utm_source=github\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"><img\nalt=\"View guided diff\"\nsrc=\"https://www.cubic.dev/buttons/review-in-cubic-light.svg\"></picture></a>\n<a\nhref=\"https://www.cubic.dev/action/auto-fix/pr/andymai/elevator-core/975?returnTo=https%3A%2F%2Fgithub.com%2Fandymai%2Felevator-core%2Fpull%2F975&source=description\"\ntarget=\"_blank\" rel=\"noopener noreferrer\"\ndata-no-image-dialog=\"true\"><picture><source\nmedia=\"(prefers-color-scheme: dark)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-dark.svg\"><source\nmedia=\"(prefers-color-scheme: light)\"\nsrcset=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"><img\nalt=\"Turn on auto-fix\"\nsrc=\"https://www.cubic.dev/buttons/turn-on-auto-fix-light.svg\"></picture></a>\n\n<!-- End of auto-generated description by cubic. -->",
+          "timestamp": "2026-10-15T18:36:04Z",
+          "url": "https://github.com/andymai/elevator-core/commit/16622c17d1a58fb034c20799d66843438e19a04b"
+        },
+        "date": 1792156182654,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3932364,
+            "range": "± 7695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 629848,
+            "range": "± 3957",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 605898,
+            "range": "± 2287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 732762,
+            "range": "± 1447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 567746,
+            "range": "± 1833",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 35345,
+            "range": "± 9121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 7950,
+            "range": "± 2642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3503264,
+            "range": "± 19786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 16624557,
+            "range": "± 75338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 568595,
+            "range": "± 3193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1970111,
+            "range": "± 7961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 10337069,
+            "range": "± 77451",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 263372,
+            "range": "± 1697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1914542,
+            "range": "± 19152",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 10121932,
+            "range": "± 55834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 257527,
+            "range": "± 2174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1863823,
+            "range": "± 8976",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 9929140,
+            "range": "± 98597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 253489,
+            "range": "± 2382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1881374,
+            "range": "± 9171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 9972779,
+            "range": "± 90462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 256882,
+            "range": "± 2807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1934062,
+            "range": "± 19370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 10106004,
+            "range": "± 81242",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 251705,
+            "range": "± 1126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4161,
+            "range": "± 4588",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4270,
+            "range": "± 5691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4814,
+            "range": "± 6120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4044,
+            "range": "± 607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 22481,
+            "range": "± 4653",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3321016,
+            "range": "± 19441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3104395,
+            "range": "± 21633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7260,
+            "range": "± 19138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 16433,
+            "range": "± 500",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 10297,
+            "range": "± 26532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 93098,
+            "range": "± 11808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17254,
+            "range": "± 2621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 832599,
+            "range": "± 16487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 85749,
+            "range": "± 2182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 15446,
+            "range": "± 2460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 821657,
+            "range": "± 10424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 88785,
+            "range": "± 2376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 16337,
+            "range": "± 2503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 5427514912,
+            "range": "± 26754040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 78640990,
+            "range": "± 214848",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 18240203,
+            "range": "± 136137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 64591609,
+            "range": "± 193442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8078435,
+            "range": "± 80646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 35152,
+            "range": "± 1013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14278,
+            "range": "± 4746",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 7336,
+            "range": "± 12001",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 205955,
+            "range": "± 13976",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 196616,
+            "range": "± 2894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 131830,
+            "range": "± 5144",
             "unit": "ns/iter"
           }
         ]
