@@ -269,17 +269,23 @@ jobs:
       # `assets/contract-corpus/golden.txt`; a divergence here means
       # the wasm32 build of `elevator-core` produces a different
       # `snapshot_checksum` for the same scenario inputs.
+      # Runner and library schema versions must match exactly, so the
+      # runner version is read from `Cargo.lock` rather than pinned.
+      - name: Resolve wasm-bindgen version
+        id: wasm-bindgen
+        run: |
+          WB_VERSION=$(cargo metadata --format-version 1 \
+            | python3 -c "import sys,json; pkgs=json.load(sys.stdin)['packages']; print(next(p['version'] for p in pkgs if p['name']=='wasm-bindgen'))")
+          echo "version=${WB_VERSION}" >> "$GITHUB_OUTPUT"
       - name: Install wasm-bindgen-test-runner
         # `taiki-e/install-action` pulls pre-built binaries from
         # upstream releases and reliably puts them on PATH. The
         # cargo-binstall equivalent ran into "already installed"
         # false positives that left the binary off PATH on a fresh
-        # runner. Version tracks `wasm-bindgen` in `Cargo.lock`;
-        # mismatched runner/library versions fail loudly at test
-        # startup.
+        # runner.
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.118
+          tool: wasm-bindgen-cli@${{ steps.wasm-bindgen.outputs.version }}
       - name: Run wasm-host contract test (wasm32)
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
