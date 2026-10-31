@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793372241109,
+  "lastUpdate": 1793456741674,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -35983,6 +35983,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 130347,
             "range": "± 8605",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]",
+            "email": "49699333+dependabot[bot]@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8ded3aef168f614d1e88bdc3b0f2cf16141abc95",
+          "message": "chore(deps): bump bevy from 0.19.1 to 0.20.0 (#979)\n\nBumps [bevy](https://github.com/bevyengine/bevy) from 0.19.1 to 0.20.0.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a\nhref=\"https://github.com/bevyengine/bevy/releases\">bevy's\nreleases</a>.</em></p>\n<blockquote>\n<h2>v0.20.0</h2>\n<p>A full diff of what's in this release can be seen here: <a\nhref=\"https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0\">https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0</a></p>\n<h2>v0.20.0-rc.2</h2>\n<p>A full diff of what's in the release candidate can be seen here: <a\nhref=\"https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0-rc.2\">https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0-rc.2</a></p>\n<p>The list of new fixes from the previous RC can be seen here: <a\nhref=\"https://github.com/bevyengine/bevy/compare/v0.20.0-rc.1...v0.20.0-rc.2\">https://github.com/bevyengine/bevy/compare/v0.20.0-rc.1...v0.20.0-rc.2</a></p>\n<h2>v0.20.0-rc.1</h2>\n<p>A full diff of what's in the release candidate can be seen here: <a\nhref=\"https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0-rc.1\">https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0-rc.1</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/b3bdd75becaffe9a16677cf5bae5bd6d198f052b\"><code>b3bdd75</code></a>\nRelease 0.20.0</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/9dc25c2b0d4d5a79db86cf892cd338d3019f3eb1\"><code>9dc25c2</code></a>\nSupport arrays of BsnValue as a BsnFnArg (adopted) (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26056\">#26056</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/b6e3ca526fcd67f06257720b35f090c6c40d78d5\"><code>b6e3ca5</code></a>\nFix <code>replace_related</code> allowing duplicate entities (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26048\">#26048</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/34305fe580dd1d60103c943ef8e4c0932eda1839\"><code>34305fe</code></a>\nSpecify <code>EntityLocation</code> alignment to improve codegen (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26042\">#26042</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/bf0c11f97b7a1e3d4e3747d6d64a32178dabac63\"><code>bf0c11f</code></a>\nUpdate WESL 0.6 (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/25768\">#25768</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/36a521af6b012457a5d160d8b8be8af12d6d0d48\"><code>36a521a</code></a>\nRe-inline <code>QueryManyIter</code> fetch functions (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26040\">#26040</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/299ebbb663fa17dba80ed8fe3e53fa616bba1440\"><code>299ebbb</code></a>\nMake <code>DeprecatedInteraction</code> public. (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26033\">#26033</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/cb237982bef37baf710c307445865dd97a82d2be\"><code>cb23798</code></a>\nFix warning when loading the sprite_material.wesl shader (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26002\">#26002</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/a4f36c5acaee8a02d384047f56ec906cbf152a99\"><code>a4f36c5</code></a>\nFix 9 slicing (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/26011\">#26011</a>)</li>\n<li><a\nhref=\"https://github.com/bevyengine/bevy/commit/c410852eab434c12cc7849cfc8ae6c3b51fc29d3\"><code>c410852</code></a>\nFix sRGB luminance texture conversion (<a\nhref=\"https://redirect.github.com/bevyengine/bevy/issues/25964\">#25964</a>)</li>\n<li>Additional commits viewable in <a\nhref=\"https://github.com/bevyengine/bevy/compare/v0.19.1...v0.20.0\">compare\nview</a></li>\n</ul>\n</details>\n<br />\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Andy Aragon <hi@andymai.com>",
+          "timestamp": "2026-10-19T16:09:12Z",
+          "url": "https://github.com/andymai/elevator-core/commit/8ded3aef168f614d1e88bdc3b0f2cf16141abc95"
+        },
+        "date": 1793456740571,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3943100,
+            "range": "± 6986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 606149,
+            "range": "± 1798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 593171,
+            "range": "± 3489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 703460,
+            "range": "± 2020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 549819,
+            "range": "± 2075",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 35579,
+            "range": "± 2049",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 9052,
+            "range": "± 11423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3371081,
+            "range": "± 20609",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 15198631,
+            "range": "± 74442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 558506,
+            "range": "± 1782",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1875237,
+            "range": "± 6148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 9109404,
+            "range": "± 36849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 269100,
+            "range": "± 1683",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1834640,
+            "range": "± 6803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8756550,
+            "range": "± 55841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 259636,
+            "range": "± 2155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1764077,
+            "range": "± 14324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8533745,
+            "range": "± 25381",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 254028,
+            "range": "± 1756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1762357,
+            "range": "± 5405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8565708,
+            "range": "± 44358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 255741,
+            "range": "± 1079",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1821572,
+            "range": "± 6346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8623134,
+            "range": "± 27129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 256107,
+            "range": "± 1103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4534,
+            "range": "± 6098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 4202,
+            "range": "± 4595",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 4938,
+            "range": "± 5461",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4166,
+            "range": "± 1082",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 22578,
+            "range": "± 4348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 3462079,
+            "range": "± 6651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 3372897,
+            "range": "± 456846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7024,
+            "range": "± 11593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 17773,
+            "range": "± 1370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 10286,
+            "range": "± 16776",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 97064,
+            "range": "± 8163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 17856,
+            "range": "± 3315",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 869018,
+            "range": "± 23749",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 92106,
+            "range": "± 5953",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 16362,
+            "range": "± 3118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 877990,
+            "range": "± 22650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 95939,
+            "range": "± 15174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 17689,
+            "range": "± 2981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 4614823474,
+            "range": "± 14328710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 64248132,
+            "range": "± 270841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 16831910,
+            "range": "± 40390",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 54517930,
+            "range": "± 197031",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 8044199,
+            "range": "± 30099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 35436,
+            "range": "± 1428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 14447,
+            "range": "± 982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 6859,
+            "range": "± 4302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 201291,
+            "range": "± 8932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 196938,
+            "range": "± 6108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 129865,
+            "range": "± 2785",
             "unit": "ns/iter"
           }
         ]
