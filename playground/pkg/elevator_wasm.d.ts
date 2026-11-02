@@ -721,6 +721,15 @@ export class WasmSim {
      */
     addLine(group_id: number, name: string, min_position: number, max_position: number, max_cars?: number | null): WasmU64Result;
     /**
+     * Add an existing stop entity to a line's served list. The stop
+     * must already exist (via `addStop` on some line, or from config).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop or line entity does not exist.
+     */
+    addStopToLine(stop_ref: bigint, line_ref: bigint): WasmVoidResult;
+    /**
      * Add a stop to a line at the given position. Returns the stop
      * entity ref.
      *
@@ -730,15 +739,6 @@ export class WasmSim {
      * non-finite.
      */
     addStop(line_ref: bigint, name: string, position: number): WasmU64Result;
-    /**
-     * Add an existing stop entity to a line's served list. The stop
-     * must already exist (via `addStop` on some line, or from config).
-     *
-     * # Errors
-     *
-     * Returns a JS error if the stop or line entity does not exist.
-     */
-    addStopToLine(stop_ref: bigint, line_ref: bigint): WasmVoidResult;
     /**
      * Entity ids of every line in the simulation, across all groups.
      */
@@ -988,6 +988,17 @@ export class WasmSim {
      */
     enable(entity_ref: bigint): WasmVoidResult;
     /**
+     * Estimated ticks remaining before the assigned car reaches the
+     * call at `(stop_ref, direction)`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if no hall call exists at `(stop, direction)`,
+     * no car is assigned to it, the assigned car has no positional
+     * data, or `direction` is not `"up"` / `"down"`.
+     */
+    etaForCall(stop_ref: bigint, direction: string): WasmU64Result;
+    /**
      * Estimated ticks remaining before `car_ref` reaches `stop_ref`.
      *
      * Includes any in-progress door cycle, intermediate stops in the
@@ -1002,17 +1013,6 @@ export class WasmSim {
      * is not in the car's destination queue.
      */
     eta(car_ref: bigint, stop_ref: bigint): WasmU64Result;
-    /**
-     * Estimated ticks remaining before the assigned car reaches the
-     * call at `(stop_ref, direction)`.
-     *
-     * # Errors
-     *
-     * Returns a JS error if no hall call exists at `(stop, direction)`,
-     * no car is assigned to it, the assigned car has no positional
-     * data, or `direction` is not `"up"` / `"down"`.
-     */
-    etaForCall(stop_ref: bigint, direction: string): WasmU64Result;
     /**
      * Find the stop entity at `position` that's served by `line_ref`,
      * or `0` (slotmap-null) if none. Lets consumers disambiguate
@@ -1162,10 +1162,6 @@ export class WasmSim {
      */
     loopNextStop(line_ref: bigint, position: number): bigint | undefined;
     /**
-     * Current aggregate metrics.
-     */
-    metrics(): MetricsDto;
-    /**
      * Aggregate metrics for `tag`. Returns `undefined` if no riders
      * carrying the tag have been recorded yet.
      *
@@ -1173,6 +1169,10 @@ export class WasmSim {
      * multiply by `dt` for real-time seconds.
      */
     metricsForTag(tag: string): TaggedMetricDto | undefined;
+    /**
+     * Current aggregate metrics.
+     */
+    metrics(): MetricsDto;
     /**
      * Construct a new simulation from a RON-encoded [`SimConfig`] and a
      * dispatch strategy name (`"scan" | "look" | "nearest" | "etd" | "destination"`).
@@ -1277,17 +1277,6 @@ export class WasmSim {
      */
     pressHallCall(stop_ref: bigint, direction: string): WasmVoidResult;
     /**
-     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
-     * Adjacent duplicates are suppressed (no-op if the queue's last
-     * entry already equals `stop_ref`).
-     *
-     * # Errors
-     *
-     * Returns a JS error if `elevator_ref` is not an elevator or
-     * `stop_ref` is not a stop.
-     */
-    pushDestination(elevator_ref: bigint, stop_ref: bigint): WasmVoidResult;
-    /**
      * Insert `stop_ref` at the front of `elevator_ref`'s destination
      * queue ("go here next"). On the next `AdvanceQueue` phase the car
      * redirects to this new front if it differs from the current target.
@@ -1298,6 +1287,17 @@ export class WasmSim {
      * `stop_ref` is not a stop.
      */
     pushDestinationFront(elevator_ref: bigint, stop_ref: bigint): WasmVoidResult;
+    /**
+     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
+     * Adjacent duplicates are suppressed (no-op if the queue's last
+     * entry already equals `stop_ref`).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     */
+    pushDestination(elevator_ref: bigint, stop_ref: bigint): WasmVoidResult;
     /**
      * Stops reachable from `from_stop` via the line-graph (BFS through
      * shared elevators). Excludes `from_stop` itself.
@@ -1347,15 +1347,6 @@ export class WasmSim {
      */
     removeReposition(group_id: number): void;
     /**
-     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
-     * or abandoned per `Simulation::remove_stop` semantics.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the stop does not exist.
-     */
-    removeStop(stop_ref: bigint): WasmVoidResult;
-    /**
      * Remove a stop from a line's served list. The stop entity itself
      * remains in the world — call `removeStop` to fully despawn.
      *
@@ -1365,20 +1356,20 @@ export class WasmSim {
      */
     removeStopFromLine(stop_ref: bigint, line_ref: bigint): WasmVoidResult;
     /**
+     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
+     * or abandoned per `Simulation::remove_stop` semantics.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist.
+     */
+    removeStop(stop_ref: bigint): WasmVoidResult;
+    /**
      * Active reposition strategy name (one of `adaptive | predictive
      * | lobby | spread | none`). Used by the playground to label the
      * second chip in each pane header.
      */
     repositionStrategyName(): string;
-    /**
-     * Replace a rider's destination with `new_destination`. Re-routes
-     * in-flight riders to head to the new stop after their current leg.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the rider or destination does not exist.
-     */
-    reroute(rider_ref: bigint, new_destination_ref: bigint): WasmVoidResult;
     /**
      * Give a `Resident` rider a new single-leg route via `group_id`,
      * transitioning them back to `Waiting`. The route's first leg origin
@@ -1403,6 +1394,15 @@ export class WasmSim {
      * `Resident` phase, has no current stop, or no route exists.
      */
     rerouteRiderShortest(rider_ref: bigint, to_stop_ref: bigint): WasmVoidResult;
+    /**
+     * Replace a rider's destination with `new_destination`. Re-routes
+     * in-flight riders to head to the new stop after their current leg.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider or destination does not exist.
+     */
+    reroute(rider_ref: bigint, new_destination_ref: bigint): WasmVoidResult;
     /**
      * Number of resident riders at `stop_ref`. Faster than counting
      * `residentsAt` since it skips the array allocation.
@@ -1478,19 +1478,6 @@ export class WasmSim {
      */
     setDeceleration(elevator_ref: bigint, deceleration: number): WasmVoidResult;
     /**
-     * Set `door_open_ticks` (dwell duration) on a single elevator.
-     *
-     * Takes effect on the **next** door cycle — an in-progress dwell
-     * completes its original timing to avoid visual glitches. See
-     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
-     * or the value is invalid (zero `ticks`).
-     */
-    setDoorOpenTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
-    /**
      * Set `door_open_ticks` (dwell duration) on every elevator.
      *
      * Takes effect on the **next** door cycle — an in-progress dwell
@@ -1504,15 +1491,18 @@ export class WasmSim {
      */
     setDoorOpenTicksAll(ticks: number): WasmVoidResult;
     /**
-     * Set `door_transition_ticks` (open/close transition duration) on
-     * a single elevator. Takes effect on the next door cycle.
+     * Set `door_open_ticks` (dwell duration) on a single elevator.
+     *
+     * Takes effect on the **next** door cycle — an in-progress dwell
+     * completes its original timing to avoid visual glitches. See
+     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
      *
      * # Errors
      *
      * Surfaces the underlying `SimError` if `elevator_ref` is unknown
      * or the value is invalid (zero `ticks`).
      */
-    setDoorTransitionTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
+    setDoorOpenTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
     /**
      * Set `door_transition_ticks` (open- and close-transition duration)
      * on every elevator.
@@ -1526,6 +1516,16 @@ export class WasmSim {
      * is zero.
      */
     setDoorTransitionTicksAll(ticks: number): WasmVoidResult;
+    /**
+     * Set `door_transition_ticks` (open/close transition duration) on
+     * a single elevator. Takes effect on the next door cycle.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or the value is invalid (zero `ticks`).
+     */
+    setDoorTransitionTicks(elevator_ref: bigint, ticks: number): WasmVoidResult;
     /**
      * Pin an elevator to a hard-coded home stop. Whenever the car is
      * idle and off-position, the reposition phase routes it to the
@@ -1574,15 +1574,6 @@ export class WasmSim {
      */
     setLineRange(line_ref: bigint, min_position: number, max_position: number): WasmVoidResult;
     /**
-     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
-     * or `speed` is non-positive / non-finite.
-     */
-    setMaxSpeed(elevator_ref: bigint, speed: number): WasmVoidResult;
-    /**
      * Set `max_speed` (m/s) on every elevator in the sim.
      *
      * Velocity is preserved across the change; the movement integrator
@@ -1596,6 +1587,21 @@ export class WasmSim {
      */
     setMaxSpeedAll(speed: number): WasmVoidResult;
     /**
+     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `speed` is non-positive / non-finite.
+     */
+    setMaxSpeed(elevator_ref: bigint, speed: number): WasmVoidResult;
+    /**
+     * Install `PredictiveParking` as the reposition strategy for every
+     * group, with the given rolling window. Used by the residential
+     * scenario to spotlight arrival-rate-driven pre-positioning.
+     */
+    setRepositionPredictiveParking(window_ticks: bigint): void;
+    /**
      * Swap the reposition strategy by name. Returns `true` on success.
      * State is preserved — only the idle-parking policy changes.
      * Unknown names return `false` so the UI can round-trip arbitrary
@@ -1607,12 +1613,6 @@ export class WasmSim {
      * for all groups.
      */
     setReposition(name: string): boolean;
-    /**
-     * Install `PredictiveParking` as the reposition strategy for every
-     * group, with the given rolling window. Used by the residential
-     * scenario to spotlight arrival-rate-driven pre-positioning.
-     */
-    setRepositionPredictiveParking(window_ticks: bigint): void;
     /**
      * Replace a rider's allowed-stops set. Empty array clears the
      * restriction (rider can use any stop).
@@ -1670,14 +1670,6 @@ export class WasmSim {
      */
     setServiceMode(elevator_ref: bigint, mode: string): WasmVoidResult;
     /**
-     * Swap the dispatch strategy by name. Returns `true` on success.
-     *
-     * State is preserved; only the assignment policy changes. Unknown names
-     * return `false` so the UI can round-trip arbitrary dropdown values
-     * without panicking.
-     */
-    setStrategy(name: string): boolean;
-    /**
      * Install a JS function as the dispatch strategy for every group.
      *
      * `callback` is invoked once per `(car, stop)` pair the dispatch
@@ -1705,6 +1697,14 @@ export class WasmSim {
      */
     setStrategyJs(name: string, callback: Function): boolean;
     /**
+     * Swap the dispatch strategy by name. Returns `true` on success.
+     *
+     * State is preserved; only the assignment policy changes. Unknown names
+     * return `false` so the UI can round-trip arbitrary dropdown values
+     * without panicking.
+     */
+    setStrategy(name: string): boolean;
+    /**
      * Set the target velocity for a Manual-mode elevator (distance/tick).
      * Positive = up, negative = down. The car ramps toward the target
      * using its configured acceleration / deceleration.
@@ -1724,18 +1724,6 @@ export class WasmSim {
      */
     setTrafficRate(riders_per_minute: number): void;
     /**
-     * Set `weight_capacity` (kg) on a single elevator. A new cap
-     * below `current_load` leaves the car temporarily overweight
-     * (no riders ejected); subsequent boarding rejects further
-     * additions.
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
-     * or `capacity` is non-positive / non-finite.
-     */
-    setWeightCapacity(elevator_ref: bigint, capacity: number): WasmVoidResult;
-    /**
      * Set `weight_capacity` (kg) on every elevator in the sim.
      *
      * Applied immediately. A new cap below `current_load` leaves the
@@ -1749,6 +1737,18 @@ export class WasmSim {
      * is not a positive finite number.
      */
     setWeightCapacityAll(capacity: number): WasmVoidResult;
+    /**
+     * Set `weight_capacity` (kg) on a single elevator. A new cap
+     * below `current_load` leaves the car temporarily overweight
+     * (no riders ejected); subsequent boarding rejects further
+     * additions.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `capacity` is non-positive / non-finite.
+     */
+    setWeightCapacity(elevator_ref: bigint, capacity: number): WasmVoidResult;
     /**
      * Mark a rider as settled at their current stop. Settled riders
      * move from the waiting/riding pools into the resident pool —
@@ -1767,10 +1767,6 @@ export class WasmSim {
      * destination last) — adjacent pairs are individual legs.
      */
     shortestRoute(from_stop_ref: bigint, to_stop_ref: bigint): RouteDto | undefined;
-    /**
-     * Pull a cheap snapshot for rendering.
-     */
-    snapshot(): Snapshot;
     /**
      * Serialize the simulation to a self-describing postcard byte blob.
      *
@@ -1796,6 +1792,23 @@ export class WasmSim {
      * restore asymmetry was fixed.)
      */
     snapshotChecksum(): WasmU64Result;
+    /**
+     * Pull a cheap snapshot for rendering.
+     */
+    snapshot(): Snapshot;
+    /**
+     * Spawn a rider between two stops identified by their entity refs
+     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
+     * runtime-added stops that have no config-time `StopId`.
+     * Returns the new rider's entity ref so consumers can correlate
+     * with subsequent `rider-*` events.
+     *
+     * # Errors
+     *
+     * Returns a JS error if either stop does not exist, the origin
+     * equals the destination, or no group serves both stops.
+     */
+    spawnRiderByRef(origin_ref: bigint, destination_ref: bigint, weight: number, patience_ticks?: number | null): WasmU64Result;
     /**
      * Spawn a single rider between two stop ids at the given weight.
      *
@@ -1824,19 +1837,6 @@ export class WasmSim {
      * `(origin, destination)` route can't be auto-detected.
      */
     spawnRider(origin: number, destination: number, weight: number, patience_ticks?: number | null): WasmU64Result;
-    /**
-     * Spawn a rider between two stops identified by their entity refs
-     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
-     * runtime-added stops that have no config-time `StopId`.
-     * Returns the new rider's entity ref so consumers can correlate
-     * with subsequent `rider-*` events.
-     *
-     * # Errors
-     *
-     * Returns a JS error if either stop does not exist, the origin
-     * equals the destination, or no group serves both stops.
-     */
-    spawnRiderByRef(origin_ref: bigint, destination_ref: bigint, weight: number, patience_ticks?: number | null): WasmU64Result;
     /**
      * Step the simulation forward `n` ticks.
      */

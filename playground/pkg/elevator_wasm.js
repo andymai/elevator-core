@@ -5,7 +5,6 @@
  */
 export class WasmSim {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(WasmSim.prototype);
         obj.__wbg_ptr = ptr;
         WasmSimFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -116,7 +115,22 @@ export class WasmSim {
     addLine(group_id, name, min_position, max_position, max_cars) {
         const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsim_addLine(this.__wbg_ptr, group_id, ptr0, len0, min_position, max_position, isLikeNone(max_cars) ? 0x100000001 : (max_cars) >>> 0);
+        const ret = wasm.wasmsim_addLine(this.__wbg_ptr, group_id, ptr0, len0, min_position, max_position, isLikeNone(max_cars) ? Number.MAX_SAFE_INTEGER : (max_cars) >>> 0);
+        return ret;
+    }
+    /**
+     * Add an existing stop entity to a line's served list. The stop
+     * must already exist (via `addStop` on some line, or from config).
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop or line entity does not exist.
+     * @param {bigint} stop_ref
+     * @param {bigint} line_ref
+     * @returns {WasmVoidResult}
+     */
+    addStopToLine(stop_ref, line_ref) {
+        const ret = wasm.wasmsim_addStopToLine(this.__wbg_ptr, stop_ref, line_ref);
         return ret;
     }
     /**
@@ -139,21 +153,6 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Add an existing stop entity to a line's served list. The stop
-     * must already exist (via `addStop` on some line, or from config).
-     *
-     * # Errors
-     *
-     * Returns a JS error if the stop or line entity does not exist.
-     * @param {bigint} stop_ref
-     * @param {bigint} line_ref
-     * @returns {WasmVoidResult}
-     */
-    addStopToLine(stop_ref, line_ref) {
-        const ret = wasm.wasmsim_addStopToLine(this.__wbg_ptr, stop_ref, line_ref);
-        return ret;
-    }
-    /**
      * Entity ids of every line in the simulation, across all groups.
      * @returns {BigUint64Array}
      */
@@ -169,7 +168,7 @@ export class WasmSim {
      */
     allTags() {
         const ret = wasm.wasmsim_allTags(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -292,7 +291,7 @@ export class WasmSim {
      */
     carCalls(elevator_ref) {
         const ret = wasm.wasmsim_carCalls(this.__wbg_ptr, elevator_ref);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -396,7 +395,7 @@ export class WasmSim {
      */
     drainEvents() {
         const ret = wasm.wasmsim_drainEvents(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -419,7 +418,7 @@ export class WasmSim {
         const ret = wasm.wasmsim_elevatorDirection(this.__wbg_ptr, elevator_ref);
         let v1;
         if (ret[0] !== 0) {
-            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            v1 = getStringFromWasm0(ret[0], ret[1]);
             wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         }
         return v1;
@@ -600,6 +599,25 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Estimated ticks remaining before the assigned car reaches the
+     * call at `(stop_ref, direction)`.
+     *
+     * # Errors
+     *
+     * Returns a JS error if no hall call exists at `(stop, direction)`,
+     * no car is assigned to it, the assigned car has no positional
+     * data, or `direction` is not `"up"` / `"down"`.
+     * @param {bigint} stop_ref
+     * @param {string} direction
+     * @returns {WasmU64Result}
+     */
+    etaForCall(stop_ref, direction) {
+        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_etaForCall(this.__wbg_ptr, stop_ref, ptr0, len0);
+        return ret;
+    }
+    /**
      * Estimated ticks remaining before `car_ref` reaches `stop_ref`.
      *
      * Includes any in-progress door cycle, intermediate stops in the
@@ -618,25 +636,6 @@ export class WasmSim {
      */
     eta(car_ref, stop_ref) {
         const ret = wasm.wasmsim_eta(this.__wbg_ptr, car_ref, stop_ref);
-        return ret;
-    }
-    /**
-     * Estimated ticks remaining before the assigned car reaches the
-     * call at `(stop_ref, direction)`.
-     *
-     * # Errors
-     *
-     * Returns a JS error if no hall call exists at `(stop, direction)`,
-     * no car is assigned to it, the assigned car has no positional
-     * data, or `direction` is not `"up"` / `"down"`.
-     * @param {bigint} stop_ref
-     * @param {string} direction
-     * @returns {WasmU64Result}
-     */
-    etaForCall(stop_ref, direction) {
-        const ptr0 = passStringToWasm0(direction, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsim_etaForCall(this.__wbg_ptr, stop_ref, ptr0, len0);
         return ret;
     }
     /**
@@ -724,7 +723,7 @@ export class WasmSim {
      */
     hallCalls() {
         const ret = wasm.wasmsim_hallCalls(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -924,14 +923,6 @@ export class WasmSim {
         return ret[0] === 0 ? undefined : BigInt.asUintN(64, ret[1]);
     }
     /**
-     * Current aggregate metrics.
-     * @returns {MetricsDto}
-     */
-    metrics() {
-        const ret = wasm.wasmsim_metrics(this.__wbg_ptr);
-        return ret;
-    }
-    /**
      * Aggregate metrics for `tag`. Returns `undefined` if no riders
      * carrying the tag have been recorded yet.
      *
@@ -944,6 +935,14 @@ export class WasmSim {
         const ptr0 = passStringToWasm0(tag, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmsim_metricsForTag(this.__wbg_ptr, ptr0, len0);
+        return ret;
+    }
+    /**
+     * Current aggregate metrics.
+     * @returns {MetricsDto}
+     */
+    metrics() {
+        const ret = wasm.wasmsim_metrics(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -969,7 +968,7 @@ export class WasmSim {
         if (ret[2]) {
             throw takeFromExternrefTable0(ret[1]);
         }
-        this.__wbg_ptr = ret[0] >>> 0;
+        this.__wbg_ptr = ret[0];
         WasmSimFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -1012,7 +1011,7 @@ export class WasmSim {
      */
     peekLogMessages() {
         const ret = wasm.wasmsim_peekLogMessages(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -1024,7 +1023,7 @@ export class WasmSim {
      */
     pendingEvents() {
         const ret = wasm.wasmsim_pendingEvents(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
     }
@@ -1129,23 +1128,6 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
-     * Adjacent duplicates are suppressed (no-op if the queue's last
-     * entry already equals `stop_ref`).
-     *
-     * # Errors
-     *
-     * Returns a JS error if `elevator_ref` is not an elevator or
-     * `stop_ref` is not a stop.
-     * @param {bigint} elevator_ref
-     * @param {bigint} stop_ref
-     * @returns {WasmVoidResult}
-     */
-    pushDestination(elevator_ref, stop_ref) {
-        const ret = wasm.wasmsim_pushDestination(this.__wbg_ptr, elevator_ref, stop_ref);
-        return ret;
-    }
-    /**
      * Insert `stop_ref` at the front of `elevator_ref`'s destination
      * queue ("go here next"). On the next `AdvanceQueue` phase the car
      * redirects to this new front if it differs from the current target.
@@ -1160,6 +1142,23 @@ export class WasmSim {
      */
     pushDestinationFront(elevator_ref, stop_ref) {
         const ret = wasm.wasmsim_pushDestinationFront(this.__wbg_ptr, elevator_ref, stop_ref);
+        return ret;
+    }
+    /**
+     * Append `stop_ref` to the back of `elevator_ref`'s destination queue.
+     * Adjacent duplicates are suppressed (no-op if the queue's last
+     * entry already equals `stop_ref`).
+     *
+     * # Errors
+     *
+     * Returns a JS error if `elevator_ref` is not an elevator or
+     * `stop_ref` is not a stop.
+     * @param {bigint} elevator_ref
+     * @param {bigint} stop_ref
+     * @returns {WasmVoidResult}
+     */
+    pushDestination(elevator_ref, stop_ref) {
+        const ret = wasm.wasmsim_pushDestination(this.__wbg_ptr, elevator_ref, stop_ref);
         return ret;
     }
     /**
@@ -1243,20 +1242,6 @@ export class WasmSim {
         wasm.wasmsim_removeReposition(this.__wbg_ptr, group_id);
     }
     /**
-     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
-     * or abandoned per `Simulation::remove_stop` semantics.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the stop does not exist.
-     * @param {bigint} stop_ref
-     * @returns {WasmVoidResult}
-     */
-    removeStop(stop_ref) {
-        const ret = wasm.wasmsim_removeStop(this.__wbg_ptr, stop_ref);
-        return ret;
-    }
-    /**
      * Remove a stop from a line's served list. The stop entity itself
      * remains in the world — call `removeStop` to fully despawn.
      *
@@ -1269,6 +1254,20 @@ export class WasmSim {
      */
     removeStopFromLine(stop_ref, line_ref) {
         const ret = wasm.wasmsim_removeStopFromLine(this.__wbg_ptr, stop_ref, line_ref);
+        return ret;
+    }
+    /**
+     * Remove a stop. In-flight riders to/from it are rerouted, ejected,
+     * or abandoned per `Simulation::remove_stop` semantics.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the stop does not exist.
+     * @param {bigint} stop_ref
+     * @returns {WasmVoidResult}
+     */
+    removeStop(stop_ref) {
+        const ret = wasm.wasmsim_removeStop(this.__wbg_ptr, stop_ref);
         return ret;
     }
     /**
@@ -1288,21 +1287,6 @@ export class WasmSim {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
-    }
-    /**
-     * Replace a rider's destination with `new_destination`. Re-routes
-     * in-flight riders to head to the new stop after their current leg.
-     *
-     * # Errors
-     *
-     * Returns a JS error if the rider or destination does not exist.
-     * @param {bigint} rider_ref
-     * @param {bigint} new_destination_ref
-     * @returns {WasmVoidResult}
-     */
-    reroute(rider_ref, new_destination_ref) {
-        const ret = wasm.wasmsim_reroute(this.__wbg_ptr, rider_ref, new_destination_ref);
-        return ret;
     }
     /**
      * Give a `Resident` rider a new single-leg route via `group_id`,
@@ -1340,6 +1324,21 @@ export class WasmSim {
      */
     rerouteRiderShortest(rider_ref, to_stop_ref) {
         const ret = wasm.wasmsim_rerouteRiderShortest(this.__wbg_ptr, rider_ref, to_stop_ref);
+        return ret;
+    }
+    /**
+     * Replace a rider's destination with `new_destination`. Re-routes
+     * in-flight riders to head to the new stop after their current leg.
+     *
+     * # Errors
+     *
+     * Returns a JS error if the rider or destination does not exist.
+     * @param {bigint} rider_ref
+     * @param {bigint} new_destination_ref
+     * @returns {WasmVoidResult}
+     */
+    reroute(rider_ref, new_destination_ref) {
+        const ret = wasm.wasmsim_reroute(this.__wbg_ptr, rider_ref, new_destination_ref);
         return ret;
     }
     /**
@@ -1477,6 +1476,24 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Set `door_open_ticks` (dwell duration) on every elevator.
+     *
+     * Takes effect on the **next** door cycle — an in-progress dwell
+     * completes its original timing to avoid visual glitches. See
+     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` as a `JsError` if `ticks`
+     * is zero.
+     * @param {number} ticks
+     * @returns {WasmVoidResult}
+     */
+    setDoorOpenTicksAll(ticks) {
+        const ret = wasm.wasmsim_setDoorOpenTicksAll(this.__wbg_ptr, ticks);
+        return ret;
+    }
+    /**
      * Set `door_open_ticks` (dwell duration) on a single elevator.
      *
      * Takes effect on the **next** door cycle — an in-progress dwell
@@ -1496,11 +1513,11 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Set `door_open_ticks` (dwell duration) on every elevator.
+     * Set `door_transition_ticks` (open- and close-transition duration)
+     * on every elevator.
      *
-     * Takes effect on the **next** door cycle — an in-progress dwell
-     * completes its original timing to avoid visual glitches. See
-     * [`Simulation::set_door_open_ticks`](elevator_core::sim::Simulation::set_door_open_ticks).
+     * Takes effect on the next door cycle. See
+     * [`Simulation::set_door_transition_ticks`](elevator_core::sim::Simulation::set_door_transition_ticks).
      *
      * # Errors
      *
@@ -1509,8 +1526,8 @@ export class WasmSim {
      * @param {number} ticks
      * @returns {WasmVoidResult}
      */
-    setDoorOpenTicksAll(ticks) {
-        const ret = wasm.wasmsim_setDoorOpenTicksAll(this.__wbg_ptr, ticks);
+    setDoorTransitionTicksAll(ticks) {
+        const ret = wasm.wasmsim_setDoorTransitionTicksAll(this.__wbg_ptr, ticks);
         return ret;
     }
     /**
@@ -1527,24 +1544,6 @@ export class WasmSim {
      */
     setDoorTransitionTicks(elevator_ref, ticks) {
         const ret = wasm.wasmsim_setDoorTransitionTicks(this.__wbg_ptr, elevator_ref, ticks);
-        return ret;
-    }
-    /**
-     * Set `door_transition_ticks` (open- and close-transition duration)
-     * on every elevator.
-     *
-     * Takes effect on the next door cycle. See
-     * [`Simulation::set_door_transition_ticks`](elevator_core::sim::Simulation::set_door_transition_ticks).
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` as a `JsError` if `ticks`
-     * is zero.
-     * @param {number} ticks
-     * @returns {WasmVoidResult}
-     */
-    setDoorTransitionTicksAll(ticks) {
-        const ret = wasm.wasmsim_setDoorTransitionTicksAll(this.__wbg_ptr, ticks);
         return ret;
     }
     /**
@@ -1621,21 +1620,6 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
-     * or `speed` is non-positive / non-finite.
-     * @param {bigint} elevator_ref
-     * @param {number} speed
-     * @returns {WasmVoidResult}
-     */
-    setMaxSpeed(elevator_ref, speed) {
-        const ret = wasm.wasmsim_setMaxSpeed(this.__wbg_ptr, elevator_ref, speed);
-        return ret;
-    }
-    /**
      * Set `max_speed` (m/s) on every elevator in the sim.
      *
      * Velocity is preserved across the change; the movement integrator
@@ -1652,6 +1636,30 @@ export class WasmSim {
     setMaxSpeedAll(speed) {
         const ret = wasm.wasmsim_setMaxSpeedAll(this.__wbg_ptr, speed);
         return ret;
+    }
+    /**
+     * Set `max_speed` (m/s) on a single elevator. Applied immediately.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `speed` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} speed
+     * @returns {WasmVoidResult}
+     */
+    setMaxSpeed(elevator_ref, speed) {
+        const ret = wasm.wasmsim_setMaxSpeed(this.__wbg_ptr, elevator_ref, speed);
+        return ret;
+    }
+    /**
+     * Install `PredictiveParking` as the reposition strategy for every
+     * group, with the given rolling window. Used by the residential
+     * scenario to spotlight arrival-rate-driven pre-positioning.
+     * @param {bigint} window_ticks
+     */
+    setRepositionPredictiveParking(window_ticks) {
+        wasm.wasmsim_setRepositionPredictiveParking(this.__wbg_ptr, window_ticks);
     }
     /**
      * Swap the reposition strategy by name. Returns `true` on success.
@@ -1671,15 +1679,6 @@ export class WasmSim {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.wasmsim_setReposition(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
-    }
-    /**
-     * Install `PredictiveParking` as the reposition strategy for every
-     * group, with the given rolling window. Used by the residential
-     * scenario to spotlight arrival-rate-driven pre-positioning.
-     * @param {bigint} window_ticks
-     */
-    setRepositionPredictiveParking(window_ticks) {
-        wasm.wasmsim_setRepositionPredictiveParking(this.__wbg_ptr, window_ticks);
     }
     /**
      * Replace a rider's allowed-stops set. Empty array clears the
@@ -1774,21 +1773,6 @@ export class WasmSim {
         return ret;
     }
     /**
-     * Swap the dispatch strategy by name. Returns `true` on success.
-     *
-     * State is preserved; only the assignment policy changes. Unknown names
-     * return `false` so the UI can round-trip arbitrary dropdown values
-     * without panicking.
-     * @param {string} name
-     * @returns {boolean}
-     */
-    setStrategy(name) {
-        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsim_setStrategy(this.__wbg_ptr, ptr0, len0);
-        return ret !== 0;
-    }
-    /**
      * Install a JS function as the dispatch strategy for every group.
      *
      * `callback` is invoked once per `(car, stop)` pair the dispatch
@@ -1824,6 +1808,21 @@ export class WasmSim {
         return ret !== 0;
     }
     /**
+     * Swap the dispatch strategy by name. Returns `true` on success.
+     *
+     * State is preserved; only the assignment policy changes. Unknown names
+     * return `false` so the UI can round-trip arbitrary dropdown values
+     * without panicking.
+     * @param {string} name
+     * @returns {boolean}
+     */
+    setStrategy(name) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmsim_setStrategy(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * Set the target velocity for a Manual-mode elevator (distance/tick).
      * Positive = up, negative = down. The car ramps toward the target
      * using its configured acceleration / deceleration.
@@ -1852,24 +1851,6 @@ export class WasmSim {
         wasm.wasmsim_setTrafficRate(this.__wbg_ptr, riders_per_minute);
     }
     /**
-     * Set `weight_capacity` (kg) on a single elevator. A new cap
-     * below `current_load` leaves the car temporarily overweight
-     * (no riders ejected); subsequent boarding rejects further
-     * additions.
-     *
-     * # Errors
-     *
-     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
-     * or `capacity` is non-positive / non-finite.
-     * @param {bigint} elevator_ref
-     * @param {number} capacity
-     * @returns {WasmVoidResult}
-     */
-    setWeightCapacity(elevator_ref, capacity) {
-        const ret = wasm.wasmsim_setWeightCapacity(this.__wbg_ptr, elevator_ref, capacity);
-        return ret;
-    }
-    /**
      * Set `weight_capacity` (kg) on every elevator in the sim.
      *
      * Applied immediately. A new cap below `current_load` leaves the
@@ -1886,6 +1867,24 @@ export class WasmSim {
      */
     setWeightCapacityAll(capacity) {
         const ret = wasm.wasmsim_setWeightCapacityAll(this.__wbg_ptr, capacity);
+        return ret;
+    }
+    /**
+     * Set `weight_capacity` (kg) on a single elevator. A new cap
+     * below `current_load` leaves the car temporarily overweight
+     * (no riders ejected); subsequent boarding rejects further
+     * additions.
+     *
+     * # Errors
+     *
+     * Surfaces the underlying `SimError` if `elevator_ref` is unknown
+     * or `capacity` is non-positive / non-finite.
+     * @param {bigint} elevator_ref
+     * @param {number} capacity
+     * @returns {WasmVoidResult}
+     */
+    setWeightCapacity(elevator_ref, capacity) {
+        const ret = wasm.wasmsim_setWeightCapacity(this.__wbg_ptr, elevator_ref, capacity);
         return ret;
     }
     /**
@@ -1915,14 +1914,6 @@ export class WasmSim {
      */
     shortestRoute(from_stop_ref, to_stop_ref) {
         const ret = wasm.wasmsim_shortestRoute(this.__wbg_ptr, from_stop_ref, to_stop_ref);
-        return ret;
-    }
-    /**
-     * Pull a cheap snapshot for rendering.
-     * @returns {Snapshot}
-     */
-    snapshot() {
-        const ret = wasm.wasmsim_snapshot(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -1959,6 +1950,35 @@ export class WasmSim {
         return ret;
     }
     /**
+     * Pull a cheap snapshot for rendering.
+     * @returns {Snapshot}
+     */
+    snapshot() {
+        const ret = wasm.wasmsim_snapshot(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Spawn a rider between two stops identified by their entity refs
+     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
+     * runtime-added stops that have no config-time `StopId`.
+     * Returns the new rider's entity ref so consumers can correlate
+     * with subsequent `rider-*` events.
+     *
+     * # Errors
+     *
+     * Returns a JS error if either stop does not exist, the origin
+     * equals the destination, or no group serves both stops.
+     * @param {bigint} origin_ref
+     * @param {bigint} destination_ref
+     * @param {number} weight
+     * @param {number | null} [patience_ticks]
+     * @returns {WasmU64Result}
+     */
+    spawnRiderByRef(origin_ref, destination_ref, weight, patience_ticks) {
+        const ret = wasm.wasmsim_spawnRiderByRef(this.__wbg_ptr, origin_ref, destination_ref, weight, isLikeNone(patience_ticks) ? Number.MAX_SAFE_INTEGER : (patience_ticks) >>> 0);
+        return ret;
+    }
+    /**
      * Spawn a single rider between two stop ids at the given weight.
      *
      * When `patience_ticks` is provided (non-zero), the rider gets a
@@ -1991,28 +2011,7 @@ export class WasmSim {
      * @returns {WasmU64Result}
      */
     spawnRider(origin, destination, weight, patience_ticks) {
-        const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
-        return ret;
-    }
-    /**
-     * Spawn a rider between two stops identified by their entity refs
-     * (`BigInt`). Companion to [`spawn_rider`](Self::spawn_rider) for
-     * runtime-added stops that have no config-time `StopId`.
-     * Returns the new rider's entity ref so consumers can correlate
-     * with subsequent `rider-*` events.
-     *
-     * # Errors
-     *
-     * Returns a JS error if either stop does not exist, the origin
-     * equals the destination, or no group serves both stops.
-     * @param {bigint} origin_ref
-     * @param {bigint} destination_ref
-     * @param {number} weight
-     * @param {number | null} [patience_ticks]
-     * @returns {WasmU64Result}
-     */
-    spawnRiderByRef(origin_ref, destination_ref, weight, patience_ticks) {
-        const ret = wasm.wasmsim_spawnRiderByRef(this.__wbg_ptr, origin_ref, destination_ref, weight, isLikeNone(patience_ticks) ? 0x100000001 : (patience_ticks) >>> 0);
+        const ret = wasm.wasmsim_spawnRider(this.__wbg_ptr, origin, destination, weight, isLikeNone(patience_ticks) ? Number.MAX_SAFE_INTEGER : (patience_ticks) >>> 0);
         return ret;
     }
     /**
@@ -2237,7 +2236,7 @@ if (Symbol.dispose) WasmSim.prototype[Symbol.dispose] = WasmSim.prototype.free;
  */
 export function builtinRepositionStrategies() {
     const ret = wasm.builtinRepositionStrategies();
-    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
 }
@@ -2248,14 +2247,14 @@ export function builtinRepositionStrategies() {
  */
 export function builtinStrategies() {
     const ret = wasm.builtinStrategies();
-    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]);
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
 }
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
-        __wbg_Error_960c155d3d49e4c2: function(arg0, arg1) {
+        __wbg_Error_30c8987f7c2ed4e2: function(arg0, arg1) {
             const ret = Error(getStringFromWasm0(arg0, arg1));
             return ret;
         },
@@ -2266,55 +2265,55 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg___wbindgen_copy_to_typed_array_9e08990f20659111: function(arg0, arg1, arg2) {
+        __wbg___wbindgen_copy_to_typed_array_88899a52af046901: function(arg0, arg1, arg2) {
             new Uint8Array(arg2.buffer, arg2.byteOffset, arg2.byteLength).set(getArrayU8FromWasm0(arg0, arg1));
         },
-        __wbg___wbindgen_is_null_52ff4ec04186736f: function(arg0) {
+        __wbg___wbindgen_is_null_e343b7d08827ba72: function(arg0) {
             const ret = arg0 === null;
             return ret;
         },
-        __wbg___wbindgen_is_undefined_29a43b4d42920abd: function(arg0) {
+        __wbg___wbindgen_is_undefined_8865fb403f8fe9d8: function(arg0) {
             const ret = arg0 === undefined;
             return ret;
         },
-        __wbg___wbindgen_number_get_c7f42aed0525c451: function(arg0, arg1) {
+        __wbg___wbindgen_number_get_2e0e7dee9f701a71: function(arg0, arg1) {
             const obj = arg1;
             const ret = typeof(obj) === 'number' ? obj : undefined;
             getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
         },
-        __wbg___wbindgen_throw_6b64449b9b9ed33c: function(arg0, arg1) {
+        __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbg_call_a24592a6f349a97e: function() { return handleError(function (arg0, arg1, arg2) {
+        __wbg_call_187d372bd5fdd4aa: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.call(arg1, arg2);
             return ret;
         }, arguments); },
-        __wbg_new_682678e2f47e32bc: function() {
-            const ret = new Array();
-            return ret;
-        },
-        __wbg_new_aa8d0fa9762c29bd: function() {
+        __wbg_new_617a8cdb8bb1130e: function() {
             const ret = new Object();
             return ret;
         },
-        __wbg_set_3bf1de9fab0cd644: function(arg0, arg1, arg2) {
-            arg0[arg1 >>> 0] = arg2;
+        __wbg_new_ee2291f50781bf1d: function() {
+            const ret = new Array();
+            return ret;
         },
         __wbg_set_6be42768c690e380: function(arg0, arg1, arg2) {
             arg0[arg1] = arg2;
         },
-        __wbindgen_cast_0000000000000001: function(arg0) {
+        __wbg_set_bea140a88be9b277: function(arg0, arg1, arg2) {
+            arg0[arg1 >>> 0] = arg2;
+        },
+        __wbindgen_generic_0000000000000001: function(arg0) {
             // Cast intrinsic for `F64 -> Externref`.
             const ret = arg0;
             return ret;
         },
-        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
+        __wbindgen_generic_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return ret;
         },
-        __wbindgen_cast_0000000000000003: function(arg0) {
+        __wbindgen_generic_0000000000000003: function(arg0) {
             // Cast intrinsic for `U64 -> Externref`.
             const ret = BigInt.asUintN(64, arg0);
             return ret;
@@ -2337,7 +2336,7 @@ function __wbg_get_imports() {
 
 const WasmSimFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_wasmsim_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmsim_free(ptr, 1));
 
 function addToExternrefTable0(obj) {
     const idx = wasm.__externref_table_alloc();
@@ -2396,8 +2395,7 @@ function getFloat64ArrayMemory0() {
 }
 
 function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return decodeText(ptr, len);
+    return decodeText(ptr >>> 0, len);
 }
 
 let cachedUint32ArrayMemory0 = null;
@@ -2522,8 +2520,9 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-let wasmModule, wasm;
+let wasmModule, wasmInstance, wasm;
 function __wbg_finalize_init(instance, module) {
+    wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
     cachedBigUint64ArrayMemory0 = null;
@@ -2537,11 +2536,15 @@ function __wbg_finalize_init(instance, module) {
 
 async function __wbg_load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
+        if (!module.ok) {
+            throw new Error(`failed to fetch Wasm: ${module.status} ${module.statusText} fetching '${module.url}'`);
+        }
+
         if (typeof WebAssembly.instantiateStreaming === 'function') {
             try {
                 return await WebAssembly.instantiateStreaming(module, imports);
             } catch (e) {
-                const validResponse = module.ok && expectedResponseType(module.type);
+                const validResponse = expectedResponseType(module.type);
 
                 if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
                     console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", e);
