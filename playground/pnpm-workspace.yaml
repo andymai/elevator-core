@@ -17,7 +17,7 @@ overrides:
   # monaco-editor pins dompurify below the sanitizer-bypass fixes.
   dompurify: ^3.4.16
   # ajv -> fast-uri: host confusion via backslash authority delimiter.
-  fast-uri: ^3.1.8
+  fast-uri: ^3.1.9
   # cosmiconfig -> js-yaml: quadratic CPU consumption via merge keys / !!omap.
   js-yaml: ^4.3.2
   # minimatch -> brace-expansion: exponential-time expansion DoS.
