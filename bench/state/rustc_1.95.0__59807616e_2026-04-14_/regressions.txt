@@ -1,9 +1,1 @@
-dynamic_topology/add_line
-dynamic_topology/add_stop_to_line
-dynamic_topology/remove_line
-query_elevators/10_elevators
-query_elevators/200_elevators
-query_elevators/50_elevators
-query_riders/100_riders
-query_tuple/100_entities
 scaling_extreme/500e_5000s_50000r_10ticks
