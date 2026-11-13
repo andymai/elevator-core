@@ -87,8 +87,8 @@ cargo run --example basic -p elevator-core
 ## Features
 
 - **Stops at any position.** Floors do not need equal spacing, so you can model buildings, towers, and orbital tethers.
-- **Pluggable dispatch.** Use a built-in strategy (SCAN, LOOK, Nearest Car, ETD, or Destination), or write your own with the `DispatchStrategy` trait.
-- **Rider lifecycle.** Riders move through Waiting → Boarding → Riding → Exiting → Arrived/Abandoned, with hooks at each transition.
+- **Pluggable dispatch.** Use a built-in strategy (SCAN, LOOK, Nearest Car, ETD, Destination, or RSR), or write your own with the `DispatchStrategy` trait.
+- **Rider lifecycle.** Riders move through Waiting → Boarding → Riding → Exiting → Arrived/Abandoned. Hooks run your code before or after each phase of a tick.
 - **Extension storage.** Attach any typed data to riders, elevators, and stops.
 - **O(1) population queries.** Find who waits, rides, or is resident at any stop.
 - **Deterministic replay.** The same inputs give the same simulation each time.
@@ -128,10 +128,12 @@ elevator-core = "21"
 
 Feature flags:
 
-| Flag      | Default | Adds                                                            |
-| --------- | ------- | --------------------------------------------------------------- |
-| `traffic` | yes     | Poisson arrivals and daily traffic patterns. Depends on `rand`. |
-| `energy`  | no      | Energy and regen model for each elevator.                       |
+| Flag               | Default | Adds                                                                                                                          |
+| ------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `traffic`          | yes     | Poisson arrivals and daily traffic patterns. Depends on `rand`.                                                               |
+| `energy`           | no      | Energy and regen model for each elevator.                                                                                     |
+| `deterministic-fp` | no      | Replaces `f64::mul_add` with `(a * b) + c`, so results match across hosts such as native and wasm32.                          |
+| `loop_lines`       | no      | Closed-loop lines (trains, monorails, gondolas): `LineKind::Loop` and the `LoopSweep` and `LoopSchedule` dispatch strategies. |
 
 ## Development
 
