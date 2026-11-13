@@ -172,8 +172,7 @@ pub fn run(
         // `scratch.pinned_pairs` is owned by `scratch` (not borrowed
         // from world), so the inner `commit_go_to_stop(world, …)`
         // can take its own `&mut world` without aliasing our slice.
-        for i in 0..scratch.pinned_pairs.len() {
-            let (car_eid, stop_eid) = scratch.pinned_pairs[i];
+        for &(car_eid, stop_eid) in &scratch.pinned_pairs {
             let eligible = world.elevator(car_eid).is_some_and(|c| {
                 matches!(c.phase, ElevatorPhase::Idle | ElevatorPhase::Stopped)
                     || (matches!(c.phase, ElevatorPhase::MovingToStop(_)) && c.riders.is_empty())
