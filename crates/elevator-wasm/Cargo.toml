@@ -19,6 +19,9 @@ missing_docs = "warn"
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
+# tsify's `#[tsify(into_wasm_abi)]` expansion uses its own underscore-prefixed
+# items, and clippy 1.100 reports each use at our attribute.
+used_underscore_items = "allow"
 missing_docs_in_private_items = "allow"
 module_name_repetitions = "allow"
 missing_errors_doc = "warn"
