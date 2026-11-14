@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794585803928,
+  "lastUpdate": 1794668120669,
   "repoUrl": "https://github.com/andymai/elevator-core",
   "entries": {
     "Benchmark": [
@@ -40135,6 +40135,352 @@ window.BENCHMARK_DATA = {
             "name": "topology_queries/transfer_points",
             "value": 111760,
             "range": "± 6148",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Andy Aragon",
+            "username": "andymai",
+            "email": "hi@andymai.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "e1ba2a9aaa9c5865bc29bd1557c7b9eb8d431542",
+          "message": "docs(readme): rewrite the README in plain language (#994)\n\n## What changed\n\nThis PR rewrites `README.md` in ASD-STE100 Simplified Technical English.\nIt changes no other file.\n\n- Removed all 22 em dashes outside code. Periods, colons, and\nparentheses replace them.\n- Replaced quality words with facts or removed them:\n- Removed \"instantly\" (population queries), because the label already\nstates O(1).\n- \"a more elaborate example\" became \"a larger example with three riders\nand aggregate metrics\".\n- \"deliberately\" became \"By design\", \"strictly 1-D\" became \"1-D only\",\nand \"arbitrary\" became \"any\" (3 times). Removed \"just\".\n- The line \"From a 5-story office to a space elevator, same engine, same\nAPI\" is now a plain sentence: \"One engine and one API run a 5-story\noffice or a space elevator.\"\n- The Features and Scope lists now use full sentences after each bold\nlabel.\n- The opening now agrees with the GitHub description of the repo.\n- No heading changed, so all anchors stay the same.\n- Prettier 3.8.3 with its default settings formatted the file. The old\nREADME passed `prettier --check` with the same settings.\n\n## Fact corrected\n\nThe install snippet said `elevator-core = \"1\"`. With that requirement,\nCargo resolves only 1.x releases. The current version is 21.0.2:\n\n- `crates/elevator-core/Cargo.toml` line 3: `version = \"21.0.2\"`\n- `.release-please-manifest.json`: `\"crates/elevator-core\": \"21.0.2\"`\n- crates.io API: `max_version` is `21.0.2`\n\nThe snippet now says `elevator-core = \"21\"`. No other code block\nchanged. `crates/elevator-core/src/doctests.rs` line 16 includes the\nREADME, so the Rust snippet is a doctest.\n\n## Facts added\n\nThe second commit adds three facts that the README left out:\n\n- The dispatch list now includes RSR. `BuiltinStrategy::Rsr` and\n`RsrDispatch` are public in `crates/elevator-core/src/dispatch/mod.rs`\n(lines 78 and 344).\n- The feature table now lists `deterministic-fp` and `loop_lines`, with\ntheir meaning from the comments in `crates/elevator-core/Cargo.toml`.\n- The README said that riders have \"hooks at each transition\". Hooks run\nbefore or after each phase of a tick (`docs/src/lifecycle-hooks.md`),\nnot on rider transitions. The README now says this.\n\n## How verified\n\n- The checker prints PASS (801 words) on the README after the second\ncommit.\n\n- `python3 -I check.py README.md --max 6000` (the checker from the\noutward-writing skill) prints PASS (750 words) with no warnings.\n- The pre-commit hook passed: fmt, clippy, core tests, doc tests for\ncore and Bevy, `cargo check --workspace --all-features --all-targets`,\nand `scripts/lint-docs.sh --quick`.\n- I compared the old and new README one sentence at a time. Each link,\nbadge, image, command, table row, and section stays.",
+          "timestamp": "2026-11-13T23:24:04Z",
+          "url": "https://github.com/andymai/elevator-core/commit/e1ba2a9aaa9c5865bc29bd1557c7b9eb8d431542"
+        },
+        "date": 1794668119806,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "calibration/fixed_workload",
+            "value": 3925730,
+            "range": "± 4447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/10_groups",
+            "value": 611576,
+            "range": "± 2690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/1_groups",
+            "value": 613421,
+            "range": "± 2448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/20_groups",
+            "value": 689723,
+            "range": "± 2955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cross_group_routing/5_groups",
+            "value": 561157,
+            "range": "± 1891",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/10e_50s",
+            "value": 32534,
+            "range": "± 12309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch/3e_10s",
+            "value": 6836,
+            "range": "± 193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_20e_50s",
+            "value": 3128613,
+            "range": "± 8876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_50e_200s",
+            "value": 14802494,
+            "range": "± 86375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/destination_5e_10s",
+            "value": 514430,
+            "range": "± 2142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_20e_50s",
+            "value": 1683052,
+            "range": "± 5899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_50e_200s",
+            "value": 8708513,
+            "range": "± 40185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/etd_5e_10s",
+            "value": 225254,
+            "range": "± 973",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_20e_50s",
+            "value": 1620811,
+            "range": "± 4586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_50e_200s",
+            "value": 8404436,
+            "range": "± 44163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/look_5e_10s",
+            "value": 223267,
+            "range": "± 3181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_20e_50s",
+            "value": 1577218,
+            "range": "± 10023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_50e_200s",
+            "value": 8219588,
+            "range": "± 100545",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/nearest_car_5e_10s",
+            "value": 219806,
+            "range": "± 5624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_20e_50s",
+            "value": 1581938,
+            "range": "± 8297",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_50e_200s",
+            "value": 8183880,
+            "range": "± 42142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/rsr_5e_10s",
+            "value": 218158,
+            "range": "± 2886",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_20e_50s",
+            "value": 1626928,
+            "range": "± 7656",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_50e_200s",
+            "value": 8377056,
+            "range": "± 42474",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dispatch_comparison/scan_5e_10s",
+            "value": 220418,
+            "range": "± 2633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_line",
+            "value": 4038,
+            "range": "± 6492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/add_stop_to_line",
+            "value": 3975,
+            "range": "± 7142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/assign_line_to_group",
+            "value": 3991,
+            "range": "± 3568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/remove_line",
+            "value": 4199,
+            "range": "± 7112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dynamic_topology/topology_rebuild",
+            "value": 21368,
+            "range": "± 3226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/multi_3g_2l_5e_20s",
+            "value": 2953974,
+            "range": "± 3937",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "multi_group_step/single_30e_50s_baseline",
+            "value": 2921139,
+            "range": "± 9030",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/10_elevators",
+            "value": 7189,
+            "range": "± 14692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/200_elevators",
+            "value": 15232,
+            "range": "± 527",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_elevators/50_elevators",
+            "value": 7111,
+            "range": "± 698",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/1000_riders",
+            "value": 84878,
+            "range": "± 2525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_optional/100_riders",
+            "value": 15331,
+            "range": "± 616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/10000_riders",
+            "value": 696436,
+            "range": "± 10222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/1000_riders",
+            "value": 78640,
+            "range": "± 3404",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_riders/100_riders",
+            "value": 13626,
+            "range": "± 227",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/10000_entities",
+            "value": 721313,
+            "range": "± 8944",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/1000_entities",
+            "value": 81504,
+            "range": "± 3426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "query_tuple/100_entities",
+            "value": 14834,
+            "range": "± 295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_extreme/500e_5000s_50000r_10ticks",
+            "value": 6114363589,
+            "range": "± 20188245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_realistic/50e_200s_2000r_100ticks",
+            "value": 86801615,
+            "range": "± 391593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/realistic_up_peak_300r_100ticks",
+            "value": 19173360,
+            "range": "± 169164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "scaling_shanghai_tower/stress_2000r_100ticks",
+            "value": 69767491,
+            "range": "± 344018",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "spawn_pressure/10k_spawns",
+            "value": 7504983,
+            "range": "± 25874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/100_riders",
+            "value": 31603,
+            "range": "± 1912",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/10_riders",
+            "value": 12498,
+            "range": "± 292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "step/1_riders",
+            "value": 5442,
+            "range": "± 330",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/reachable_stops_from",
+            "value": 199507,
+            "range": "± 5284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/shortest_route",
+            "value": 192658,
+            "range": "± 3902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "topology_queries/transfer_points",
+            "value": 126335,
+            "range": "± 1684",
             "unit": "ns/iter"
           }
         ]
