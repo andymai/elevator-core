@@ -1,5 +1,12 @@
 # Changelog
 
+## [21.0.3](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.2...elevator-core-v21.0.3) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dispatch:** iterate pinned pairs directly for clippy needless_range_loop ([#995](https://github.com/andymai/elevator-core/issues/995)) ([5280cd0](https://github.com/andymai/elevator-core/commit/5280cd00faffd49ddb45dc454bd7dfae93f8e25b))
+
 ## [21.0.2](https://github.com/andymai/elevator-core/compare/elevator-core-v21.0.1...elevator-core-v21.0.2) (2026-08-31)
 
 
